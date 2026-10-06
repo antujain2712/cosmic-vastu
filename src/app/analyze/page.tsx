@@ -5,7 +5,11 @@ import { roomInfo, roomsFor, RoomKey, PropertyType, Placement, Concern, concernI
 import { tiers, Tier } from "@/config/site";
 import { Direction, directionInfo, headingToDirection, elementInfo, ELEMENTS } from "@/lib/knowledge";
 import { compressImage } from "@/lib/image";
-import { CameraCompass } from "@/components/CameraCompass";
+import { CameraCompass, RoomShot } from "@/components/CameraCompass";
+
+// Room photos are small (≈150 KB); with up to 4 plan images and a door photo the
+// whole analysis still fits in one request under Vercel's 4.5 MB limit.
+const MAX_ROOM_SHOTS = 5;
 
 const TYPES: { k: PropertyType; label: string }[] = [
   { k: "home", label: "Home" },
@@ -37,6 +41,8 @@ function Analyze() {
   const [door, setDoor] = useState<Direction | null>(null);
   const [doorPhoto, setDoorPhoto] = useState<string | null>(null);
   const [camera, setCamera] = useState(false);
+  const [roomCamera, setRoomCamera] = useState(false);
+  const [shots, setShots] = useState<(RoomShot & { room: RoomKey })[]>([]);
   const [plans, setPlans] = useState<string[]>([]);
   const [northAt, setNorthAt] = useState<"top" | "right" | "bottom" | "left">("top");
   const [detecting, setDetecting] = useState(false);
@@ -127,7 +133,7 @@ function Analyze() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           input: { name, email: email || undefined, propertyType: type, city, entranceHeading: heading, placements: allPlacements, concerns, clutter, notes },
-          images: [...plans, ...(doorPhoto ? [doorPhoto] : [])],
+          images: [...plans, ...(doorPhoto ? [doorPhoto] : []), ...shots.map((s) => s.photo)],
         }),
       });
       const j = await res.json();
@@ -269,7 +275,36 @@ function Analyze() {
           <div className="grid md:grid-cols-[1fr_1.1fr] gap-10">
             <div>
               <h2 className="display text-4xl">Place each room</h2>
-              <p className="mt-3 text-ink-soft">Pick a room, then tap the zone where it sits. North is at the top.</p>
+              <div className="mt-4 rounded-2xl bg-denim text-paper-2 p-5">
+                <p className="font-medium">On your phone? Walk it with the camera.</p>
+                <p className="mt-1 text-sm text-paper-2/85">Stand at the centre of your space, point at each room and capture. The compass places the room for you and stamps the photo for Sanjay-ji.</p>
+                <button className="btn btn-light mt-4 !py-2" onClick={() => setRoomCamera(true)}>{shots.length ? "Add more room photos" : "Open camera compass"}</button>
+              </div>
+              {shots.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {shots.map((s, i) => (
+                    <div key={i} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={s.photo} alt={`${s.label}, ${directionInfo[s.direction].name}`} className="h-20 w-28 object-cover rounded-lg border border-line" />
+                      <button
+                        onClick={() => {
+                          setShots((x) => x.filter((_, j) => j !== i));
+                          // drop the placement this photo added (one instance)
+                          setPlacements((x) => {
+                            const k = x.findIndex((p) => p.room === s.room && p.direction === s.direction);
+                            return k < 0 ? x : x.filter((_, j) => j !== k);
+                          });
+                        }}
+                        className="absolute -top-2 -right-2 bg-ink text-paper-2 rounded-full w-6 h-6 text-sm"
+                        aria-label={`Remove ${s.label} photo`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="mt-6 text-ink-soft">Or pick a room, then tap the zone where it sits. North is at the top.</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {rooms.map((r) => (
                   <button key={r} onClick={() => setActiveRoom(activeRoom === r ? null : r)} aria-pressed={activeRoom === r} className={`rounded-full border px-3.5 py-1.5 text-sm ${activeRoom === r ? "bg-denim text-paper-2 border-denim" : "border-line bg-paper-2"}`}>
@@ -322,7 +357,7 @@ function Analyze() {
               <p><span className="text-ink-soft">Space:</span> {TYPES.find((t) => t.k === type)?.label}{city ? `, ${city}` : ""}</p>
               <p><span className="text-ink-soft">Main door:</span> {door ? directionInfo[door].name : "not set"}</p>
               <p><span className="text-ink-soft">Rooms placed:</span> {allPlacements.length}</p>
-              <p><span className="text-ink-soft">Images:</span> {plans.length + (doorPhoto ? 1 : 0)}</p>
+              <p><span className="text-ink-soft">Images:</span> {plans.length + (doorPhoto ? 1 : 0) + shots.length}</p>
               <p><span className="text-ink-soft">Improving:</span> {concerns.map((c) => concernInfo[c].label.toLowerCase()).join(", ") || "—"}</p>
               <button className="btn btn-ink w-full !mt-6" disabled={busy || allPlacements.length === 0} onClick={submit}>
                 {busy ? "Balancing your elements…" : "See my free result"}
@@ -346,6 +381,21 @@ function Analyze() {
           </div>
         )}
       </div>
+
+      {roomCamera && (
+        <CameraCompass
+          mode="rooms"
+          rooms={rooms.map((r) => ({ key: r, name: roomInfo[r].name }))}
+          shots={shots.length}
+          maxShots={MAX_ROOM_SHOTS}
+          onShot={(room, shot) => {
+            const r = room as RoomKey;
+            setShots((x) => [...x, { ...shot, room: r }]);
+            setPlacements((x) => (x.some((p) => p.room === r && p.direction === shot.direction) ? x : [...x, { room: r, direction: shot.direction }]));
+          }}
+          onClose={() => setRoomCamera(false)}
+        />
+      )}
 
       {camera && (
         <CameraCompass

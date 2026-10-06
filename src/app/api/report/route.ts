@@ -22,7 +22,8 @@ export async function POST(req: Request) {
 
   try {
     const images: string[] = [];
-    for (const d of (body.images ?? []).slice(0, 4)) {
+    // up to 4 plans + door photo + 5 stamped room photos
+    for (const d of (body.images ?? []).slice(0, 10)) {
       const n = await saveUpload(d);
       if (n) images.push(n);
     }

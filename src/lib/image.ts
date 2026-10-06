@@ -1,5 +1,5 @@
 // Client-side: shrink photos before upload so plans stay readable but light.
-// Up to five images go in one request, and Vercel caps request bodies at 4.5 MB.
+// Up to ten images go in one request (plans, door, stamped room photos), and Vercel caps request bodies at 4.5 MB.
 export async function compressImage(file: Blob, max = 1400, quality = 0.8): Promise<string> {
   const url = URL.createObjectURL(file);
   try {

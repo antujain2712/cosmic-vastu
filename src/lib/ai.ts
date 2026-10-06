@@ -58,7 +58,7 @@ RULES FOR YOU:
 
 async function imageBlocks(names: string[]) {
   const out: Anthropic.ImageBlockParam[] = [];
-  for (const n of names.slice(0, 4)) {
+  for (const n of names.slice(0, 10)) {
     const img = await loadUpload(n);
     if (img) out.push({ type: "image", source: { type: "base64", media_type: img.mediaType as "image/jpeg", data: img.data } });
   }
@@ -139,7 +139,7 @@ export async function generateReport(r: Report): Promise<AIReport> {
 CLIENT AND RULES-ENGINE RESULTS:
 ${facts}
 
-${r.images.length ? "The images are the client's floor plan and/or photos. Read them carefully: look for the entrance, kitchen, toilets, staircase, heavy items, clutter, light and anything the room list missed. Note anything that contradicts the client's own room list." : "No images were provided."}
+${r.images.length ? "The images are the client's floor plan and/or photos. Photos with a dark strip along the bottom were taken on the site with the phone compass: the strip names the room, its zone and the heading, and the red needle points north. Read them carefully: look for the entrance, kitchen, toilets, staircase, heavy items, clutter, light and anything the room list missed. Note anything that contradicts the client's own room list." : "No images were provided."}
 
 Reply with JSON only, in this shape:
 {
