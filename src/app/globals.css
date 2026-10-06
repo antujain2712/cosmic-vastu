@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@theme {
+  --color-denim: #4e6a8c;
+  --color-denim-deep: #33506e;
+  --color-denim-pale: #c9d5e2;
+  --color-sage: #7b8456;
+  --color-sage-deep: #59613b;
+  --color-paper: #e7e6e1;
+  --color-paper-2: #f3f2ee;
+  --color-ink: #1f2328;
+  --color-ink-soft: #4a4f57;
+  --color-line: #c8c6be;
+
+  --color-water: #3e7fb8;
+  --color-wood: #4f7a3a;
+  --color-fire: #d9502a;
+  --color-earth: #8a6a4f;
+  --color-metal: #8d96a0;
+
+  --font-display: var(--font-anton), "Arial Narrow", sans-serif;
+  --font-script: var(--font-pinyon), cursive;
+  --font-sans: var(--font-jost), system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --font-anton: "Anton";
+  --font-pinyon: "Pinyon Script";
+  --font-jost: "Jost Variable";
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.display {
+  font-family: var(--font-display);
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.script {
+  font-family: var(--font-script);
+  line-height: 1;
+  text-transform: none;
+}
+
+.measure {
+  max-width: 64ch;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-fire);
+  outline-offset: 3px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: background-color 0.15s, color 0.15s, transform 0.15s;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn-ink {
+  background: var(--color-ink);
+  color: var(--color-paper-2);
+}
+.btn-ink:hover {
+  background: var(--color-denim-deep);
+}
+.btn-light {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+.btn-light:hover {
+  background: #fff;
+}
+.btn-line {
+  border: 1.5px solid currentColor;
+}
+.btn-line:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.field {
+  width: 100%;
+  background: var(--color-paper-2);
+  border: 1.5px solid var(--color-line);
+  border-radius: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+}
+.field:focus {
+  border-color: var(--color-denim);
+  outline: none;
+}
+
+.label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
