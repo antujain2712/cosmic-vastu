@@ -20,25 +20,30 @@ export async function POST(req: Request) {
   if (input.placements.length === 0) return NextResponse.json({ error: "Add at least one room and its direction." }, { status: 400 });
   input.concerns = input.concerns ?? [];
 
-  const images: string[] = [];
-  for (const d of (body.images ?? []).slice(0, 4)) {
-    const n = await saveUpload(d);
-    if (n) images.push(n);
-  }
+  try {
+    const images: string[] = [];
+    for (const d of (body.images ?? []).slice(0, 4)) {
+      const n = await saveUpload(d);
+      if (n) images.push(n);
+    }
 
-  const report: Report = {
-    id: newId("r"),
-    createdAt: new Date().toISOString(),
-    tier: "free",
-    input,
-    rules: runRules(input),
-    images,
-    questionsUsed: 0,
-    aiStatus: "idle",
-  };
-  await tx((db) => {
-    db.reports.push(report);
-    if (input.email) db.leads.push({ email: input.email, name: input.name, source: "analysis", at: report.createdAt });
-  });
-  return NextResponse.json({ id: report.id });
+    const report: Report = {
+      id: newId("r"),
+      createdAt: new Date().toISOString(),
+      tier: "free",
+      input,
+      rules: runRules(input),
+      images,
+      questionsUsed: 0,
+      aiStatus: "idle",
+    };
+    await tx((db) => {
+      db.reports.push(report);
+      if (input.email) db.leads.push({ email: input.email, name: input.name, source: "analysis", at: report.createdAt });
+    });
+    return NextResponse.json({ id: report.id });
+  } catch (e) {
+    console.error("[report] save failed", e);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Couldn't save your analysis. Try again." }, { status: 500 });
+  }
 }

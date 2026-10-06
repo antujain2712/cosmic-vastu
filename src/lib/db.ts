@@ -91,10 +91,31 @@ export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 const empty = (): DB => ({ reports: [], bookings: [], payments: [], chats: {}, leads: [], blockedDates: [] });
 
 // Upstash via the Vercel Marketplace injects KV_REST_API_*; a direct Upstash setup uses UPSTASH_REDIS_REST_*.
-const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Vercel lets you pick a custom prefix when connecting a store (e.g. STORAGE_KV_REST_API_URL), so match by suffix.
+function envBySuffix(...suffixes: string[]) {
+  for (const s of suffixes) {
+    if (process.env[s]) return process.env[s];
+    const k = Object.keys(process.env).find((x) => x.endsWith(`_${s}`) && process.env[x]);
+    if (k) return process.env[k];
+  }
+  return undefined;
+}
+const redisUrl = envBySuffix("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL");
+const redisToken = envBySuffix("KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN");
 const redis = redisUrl && redisToken ? new Redis({ url: redisUrl, token: redisToken }) : null;
-const useBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+const blobToken = envBySuffix("BLOB_READ_WRITE_TOKEN");
+const useBlob = Boolean(blobToken);
+
+// Vercel's disk is read-only and wiped between requests: refuse to "save" there.
+function assertStorage(kind: "data" | "uploads") {
+  if (process.env.VERCEL && (kind === "data" ? !redis : !useBlob)) {
+    throw new Error(
+      kind === "data"
+        ? "Storage isn't connected: add an Upstash Redis database to this Vercel project, then redeploy."
+        : "Image storage isn't connected: add a private Blob store to this Vercel project, then redeploy."
+    );
+  }
+}
 
 const DB_KEY = "cv:db";
 const LOCK_KEY = "cv:db:lock";
@@ -116,6 +137,7 @@ async function save(db: DB) {
     await redis.set(DB_KEY, db);
     return;
   }
+  assertStorage("data");
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = FILE + ".tmp";
   await fs.writeFile(tmp, JSON.stringify(db, null, 2));
@@ -171,9 +193,10 @@ export async function saveUpload(dataUrl: string): Promise<string | null> {
   const name = `${crypto.randomBytes(10).toString("hex")}.${ext}`;
   if (useBlob) {
     // floor plans of people's homes: private, served only through /api/uploads
-    await blobPut(`uploads/${name}`, buf, { access: "private", addRandomSuffix: false, contentType: m[1] });
+    await blobPut(`uploads/${name}`, buf, { access: "private", addRandomSuffix: false, contentType: m[1], token: blobToken });
     return name;
   }
+  assertStorage("uploads");
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
   await fs.writeFile(path.join(UPLOAD_DIR, name), buf);
   return name;
@@ -185,7 +208,7 @@ export async function loadUpload(name: string): Promise<{ data: string; mediaTyp
   const mediaType = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
   try {
     if (useBlob) {
-      const res = await blobGet(`uploads/${name}`, { access: "private" });
+      const res = await blobGet(`uploads/${name}`, { access: "private", token: blobToken });
       if (!res || res.statusCode !== 200) return null;
       const buf = Buffer.from(await new Response(res.stream).arrayBuffer());
       return { data: buf.toString("base64"), mediaType };
